@@ -24,16 +24,16 @@ include __DIR__ . '/includes/page-start.php';
         <h4>Pago con tarjeta</h4>
         <ul>
             <li>Se acepta VISA/Mastercard.</li>
-            <li>ComisiÃ³n 3.5%.</li>
-            <li>ConfirmaciÃ³n inmediata.</li>
+            <li>Comision 3.5%.</li>
+            <li>Confirmacion inmediata.</li>
         </ul>
     </div>
 
     <div id="blkPaypal" class="panel oculto">
         <h4>Pago con PayPal</h4>
         <ul>
-            <li>ComisiÃ³n 4%.</li>
-            <li>ConfirmaciÃ³n inmediata.</li>
+            <li>Comision 4%.</li>
+            <li>Confirmacion inmediata.</li>
         </ul>
     </div>
 
@@ -44,7 +44,7 @@ include __DIR__ . '/includes/page-start.php';
             <label for="txtNombre">Nombre en la tarjeta:</label>
             <input type="text" id="txtNombre" placeholder="Nombre completo" name="nombre_tarjeta" required>
             <br>
-            <label for="txtNumero">NÃºmero de tarjeta:</label>
+            <label for="txtNumero">Numero de tarjeta:</label>
             <input type="text" id="txtNumero" placeholder="XXXX-XXXX-XXXX-XXXX" name="numero" required>
             <br>
             <label for="txtVencimiento">Fecha de vencimiento:</label>
@@ -59,7 +59,7 @@ include __DIR__ . '/includes/page-start.php';
 
     <div class="panel_interectivo_paypal" id="blkPaypalPanel">
         <h4>Instrucciones para pago con PayPal</h4>
-        <p>SerÃ¡s redirigido a la plataforma de PayPal para completar tu pago de manera segura.</p>
+        <p>Seras redirigido a la plataforma de PayPal para completar tu pago de manera segura.</p>
         <button onclick="window.location.href='https://www.paypal.com/us/home';">
             Ir a PayPal
         </button>
