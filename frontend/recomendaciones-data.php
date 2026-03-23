@@ -120,31 +120,63 @@ try {
         $response['warnings'][] = "No existe una tabla de tarjetas (cards/ValidacionTarjetas/tarjetas) y no se pudo crear automaticamente.";
     }
 
-    if ($reservationsTable !== null && has_columns($conn, $reservationsTable, ['nombre', 'fecha'])) {
-        $statusColumn = has_columns($conn, $reservationsTable, ['estado']) ? 'estado' : "'confirmada' AS estado";
-        $nextReservationsQuery = "
-            SELECT nombre, fecha, estado
-            FROM (
-                SELECT nombre, fecha, {$statusColumn}
-                FROM `{$reservationsTable}`
-            ) AS r
-            WHERE fecha >= CURDATE() AND estado = 'confirmada'
-            ORDER BY fecha ASC
-            LIMIT 5
-        ";
+    if ($reservationsTable !== null) {
+        $hasNombre = has_columns($conn, $reservationsTable, ['nombre']);
+        $hasFecha = has_columns($conn, $reservationsTable, ['fecha']);
+        $hasUserId = has_columns($conn, $reservationsTable, ['user_id']);
+        $hasEstado = has_columns($conn, $reservationsTable, ['estado']);
 
-        $nextReservationsResult = $conn->query($nextReservationsQuery);
-        if ($nextReservationsResult) {
-            while ($reservation = $nextReservationsResult->fetch_assoc()) {
-                $response['nextReservations'][] = [
-                    'nombre' => $reservation['nombre'],
-                    'fecha' => $reservation['fecha'],
-                    'estado' => $reservation['estado'],
-                ];
+        if ($hasNombre && $hasFecha) {
+            $statusColumn = $hasEstado ? 'estado' : "'confirmada' AS estado";
+            $nextReservationsQuery = "
+                SELECT nombre, fecha, estado
+                FROM (
+                    SELECT nombre, fecha, {$statusColumn}
+                    FROM `{$reservationsTable}`
+                ) AS r
+                WHERE fecha >= CURDATE() AND estado = 'confirmada'
+                ORDER BY fecha ASC
+                LIMIT 5
+            ";
+        } elseif ($hasUserId && $hasFecha && $usersTable !== null) {
+            $userNameParts = [];
+            if (has_columns($conn, $usersTable, ['fullname'])) {
+                $userNameParts[] = 'u.fullname';
+            }
+            if (has_columns($conn, $usersTable, ['username'])) {
+                $userNameParts[] = 'u.username';
+            }
+
+            $nameExpr = count($userNameParts) > 0
+                ? 'COALESCE(' . implode(', ', $userNameParts) . ')'
+                : "CONCAT('Usuario #', r.user_id)";
+            $statusExpr = $hasEstado ? 'r.estado' : "'confirmada'";
+            $statusFilter = $hasEstado ? " AND r.estado = 'confirmada'" : '';
+            $nextReservationsQuery = "
+                SELECT {$nameExpr} AS nombre, r.fecha, {$statusExpr} AS estado
+                FROM `{$reservationsTable}` r
+                LEFT JOIN `{$usersTable}` u ON u.id = r.user_id
+                WHERE r.fecha >= CURDATE(){$statusFilter}
+                ORDER BY r.fecha ASC
+                LIMIT 5
+            ";
+        } else {
+            $nextReservationsQuery = null;
+            $response['warnings'][] = "La tabla '{$reservationsTable}' no tiene columnas compatibles (nombre/fecha o user_id/fecha).";
+        }
+
+        if (!empty($nextReservationsQuery)) {
+            $nextReservationsResult = $conn->query($nextReservationsQuery);
+            if ($nextReservationsResult) {
+                while ($reservation = $nextReservationsResult->fetch_assoc()) {
+                    $response['nextReservations'][] = [
+                        'nombre' => $reservation['nombre'],
+                        'fecha' => $reservation['fecha'],
+                        'estado' => $reservation['estado'],
+                    ];
+                }
             }
         }
-    } elseif ($reservationsTable !== null) {
-        $response['warnings'][] = "La tabla '{$reservationsTable}' no tiene columnas compatibles (nombre/fecha).";
     }
 
     $conn->close();

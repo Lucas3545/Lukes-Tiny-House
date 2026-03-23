@@ -65,16 +65,94 @@ function ensure_access_logs_table(mysqli $conn): bool {
     return (bool) $conn->query($sql);
 }
 
-function log_access(mysqli $conn, string $evento, ?string $email, ?string $username, ?string $fullname, string $resultado, string $mensaje): void {
+function get_access_log_columns(mysqli $conn): array {
+    $result = $conn->query("SHOW COLUMNS FROM `access_logs`");
+    if (!($result instanceof mysqli_result)) {
+        return [];
+    }
+
+    $columns = [];
+    while ($row = $result->fetch_assoc()) {
+        $field = $row['Field'];
+        $columns[$field] = [
+            'nullable' => isset($row['Null']) ? ($row['Null'] === 'YES') : true,
+            'default' => $row['Default'] ?? null,
+        ];
+    }
+    return $columns;
+}
+
+function log_access(mysqli $conn, string $evento, ?string $email, ?string $username, ?string $fullname, string $resultado, string $mensaje, ?int $userId = null): void {
     $ip = $_SERVER['REMOTE_ADDR'] ?? null;
     $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
-    $stmt = $conn->prepare("INSERT INTO access_logs (evento, email, username, fullname, resultado, mensaje, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $available = get_access_log_columns($conn);
+    if (empty($available)) {
+        return;
+    }
+
+    $fields = [];
+    $values = [];
+    $types = '';
+
+    $fields[] = 'evento';
+    $values[] = $evento;
+    $types .= 's';
+
+    if (isset($available['user_id'])) {
+        $requiresUserId = !$available['user_id']['nullable'] && $available['user_id']['default'] === null;
+        if ($userId === null && $requiresUserId) {
+            return;
+        }
+        $fields[] = 'user_id';
+        $values[] = $userId ?? 0;
+        $types .= 'i';
+    }
+
+    if (isset($available['email'])) {
+        $fields[] = 'email';
+        $values[] = $email;
+        $types .= 's';
+    }
+    if (isset($available['username'])) {
+        $fields[] = 'username';
+        $values[] = $username;
+        $types .= 's';
+    }
+    if (isset($available['fullname'])) {
+        $fields[] = 'fullname';
+        $values[] = $fullname;
+        $types .= 's';
+    }
+
+    $fields[] = 'resultado';
+    $values[] = $resultado;
+    $types .= 's';
+
+    $fields[] = 'mensaje';
+    $values[] = $mensaje;
+    $types .= 's';
+
+    if (isset($available['ip'])) {
+        $fields[] = 'ip';
+        $values[] = $ip;
+        $types .= 's';
+    }
+    if (isset($available['user_agent'])) {
+        $fields[] = 'user_agent';
+        $values[] = $userAgent;
+        $types .= 's';
+    }
+
+    $placeholders = rtrim(str_repeat('?, ', count($fields)), ', ');
+    $columnsSql = '`' . implode('`, `', $fields) . '`';
+
+    $stmt = $conn->prepare("INSERT INTO access_logs ({$columnsSql}) VALUES ({$placeholders})");
     if (!$stmt) {
         return;
     }
 
-    $stmt->bind_param('ssssssss', $evento, $email, $username, $fullname, $resultado, $mensaje, $ip, $userAgent);
+    $stmt->bind_param($types, ...$values);
     $stmt->execute();
     $stmt->close();
 }
@@ -127,7 +205,8 @@ try {
     $stmt->bind_param("ssss", $email, $hashedPassword, $fullName, $username);
 
     if ($stmt->execute()) {
-        log_access($conn, 'registro', $email, $username, $fullName, 'ok', 'Registro exitoso');
+        $newUserId = (int) $conn->insert_id;
+        log_access($conn, 'registro', $email, $username, $fullName, 'ok', 'Registro exitoso', $newUserId > 0 ? $newUserId : null);
         echo json_encode(["success" => true, "mensaje" => "Registro exitoso"]);
     } else {
         if ($conn->errno == 1062) {

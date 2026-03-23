@@ -51,33 +51,62 @@ if ($showAdminDbPanel) {
             $dbWarnings[] = "No existe una tabla de tarjetas (cards/ValidacionTarjetas/tarjetas).";
         }
 
-        if (
-            $reservationsTable !== null
-            && admin_has_column($conn, $reservationsTable, 'nombre')
-            && admin_has_column($conn, $reservationsTable, 'fecha')
-        ) {
-            $statusColumn = admin_has_column($conn, $reservationsTable, 'estado')
-                ? 'estado'
-                : "'confirmada' AS estado";
-            $nextReservationsQuery = "
-                SELECT nombre, fecha, estado
-                FROM (
-                    SELECT nombre, fecha, {$statusColumn}
-                    FROM `{$reservationsTable}`
-                ) AS r
-                WHERE fecha >= CURDATE() AND estado = 'confirmada'
-                ORDER BY fecha ASC
-                LIMIT 5
-            ";
+        if ($reservationsTable !== null) {
+            $hasNombre = admin_has_column($conn, $reservationsTable, 'nombre');
+            $hasFecha = admin_has_column($conn, $reservationsTable, 'fecha');
+            $hasUserId = admin_has_column($conn, $reservationsTable, 'user_id');
+            $hasEstado = admin_has_column($conn, $reservationsTable, 'estado');
 
-            $nextReservationsResult = $conn->query($nextReservationsQuery);
-            if ($nextReservationsResult) {
-                while ($reservation = $nextReservationsResult->fetch_assoc()) {
-                    $nextReservations[] = $reservation;
+            if ($hasNombre && $hasFecha) {
+                $statusColumn = $hasEstado ? 'estado' : "'confirmada' AS estado";
+                $nextReservationsQuery = "
+                    SELECT nombre, fecha, estado
+                    FROM (
+                        SELECT nombre, fecha, {$statusColumn}
+                        FROM `{$reservationsTable}`
+                    ) AS r
+                    WHERE fecha >= CURDATE() AND estado = 'confirmada'
+                    ORDER BY fecha ASC
+                    LIMIT 5
+                ";
+            } elseif ($hasUserId && $hasFecha && $usersTable !== null) {
+                $userNameParts = [];
+                if (admin_has_column($conn, $usersTable, 'fullname')) {
+                    $userNameParts[] = 'u.fullname';
+                }
+                if (admin_has_column($conn, $usersTable, 'username')) {
+                    $userNameParts[] = 'u.username';
+                }
+                if (admin_has_column($conn, $usersTable, 'email')) {
+                    $userNameParts[] = 'u.email';
+                }
+
+                $nameExpr = count($userNameParts) > 0
+                    ? 'COALESCE(' . implode(', ', $userNameParts) . ')'
+                    : "CONCAT('Usuario #', r.user_id)";
+                $statusExpr = $hasEstado ? 'r.estado' : "'confirmada'";
+                $statusFilter = $hasEstado ? " AND r.estado = 'confirmada'" : '';
+                $nextReservationsQuery = "
+                    SELECT {$nameExpr} AS nombre, r.fecha, {$statusExpr} AS estado
+                    FROM `{$reservationsTable}` r
+                    LEFT JOIN `{$usersTable}` u ON u.id = r.user_id
+                    WHERE r.fecha >= CURDATE(){$statusFilter}
+                    ORDER BY r.fecha ASC
+                    LIMIT 5
+                ";
+            } else {
+                $nextReservationsQuery = null;
+                $dbWarnings[] = "La tabla '{$reservationsTable}' no tiene columnas compatibles (nombre/fecha o user_id/fecha).";
+            }
+
+            if (!empty($nextReservationsQuery)) {
+                $nextReservationsResult = $conn->query($nextReservationsQuery);
+                if ($nextReservationsResult) {
+                    while ($reservation = $nextReservationsResult->fetch_assoc()) {
+                        $nextReservations[] = $reservation;
+                    }
                 }
             }
-        } elseif ($reservationsTable !== null) {
-            $dbWarnings[] = "La tabla '{$reservationsTable}' no tiene columnas compatibles (nombre/fecha).";
         }
 
         $conn->close();
@@ -386,7 +415,6 @@ include __DIR__ . '/includes/page-start.php';
         });
     </script>
 <?php include __DIR__ . '/includes/page-end.php'; ?>
-
 
 
 

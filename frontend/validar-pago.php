@@ -3,7 +3,7 @@
 ?>
 
 <?php
-$pageTitle = 'Tarjeta de CrÃ©dito';
+$pageTitle = 'Tarjeta de Credito';
 $pageStyles = ['./css/pago.css'];
 include __DIR__ . '/includes/page-start.php';
 ?>
