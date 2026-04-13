@@ -1,89 +1,122 @@
 <?php
 require_once __DIR__ . '/includes/user-context.php';
 
-$pageTitle = "Luke's House Casa Tranquila";
+$pageTitle = "Luke's House";
 $pageStyles = [
-    'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap',
-    './css/estilos-index.css',
+    'https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&display=swap',
+    './css/estilos-tienda.css',
     './css/ai-chatbot.css',
     './css/ai-recommendations.css',
 ];
+$pageBodyAttrs = 'class="store-page"';
 
 include __DIR__ . '/includes/page-start.php';
 ?>
-    <header>
-        <section>
-            <button class="btn-reserve" onclick="location.href='calendario.php'"><strong>Reservar
-                    Ahora</strong></button>
-            <button class="btn-reserve" onclick="if(window.LH_AUTH && window.LH_AUTH.loggedIn===true){ if(!(window.openRecommendationsChat && window.openRecommendationsChat())){location.href='recomendaciones.php';} } else { location.href='panel-de-acceso.php'; }"><strong>Ver recomendaciones</strong></button>
-        </section>
+    <header class="store-hero">
         <?php include './includes/navbar-main.php'; ?>
-    </header>
-    <main class="container">
-        <div class="principal-card">
-            <div class="card-image" style="background-image: url(./img/cabanita/dsc1270.jpg);"></div>
-            <div class="card-content">
-                <h2 class="card-title">Welcome to Luke's Tiny House</h2>
-                <p class="card-description">Disfruta una estancia Ãºnica; patio de 1 acre visitado por perezosos,
-                    tucanes, ranas, colibri­es, polinizadores, etc. En las tardes y maÃ±anas talvez escuches monos
-                    aulladores.
-                    Si caminas un poco, es posible que veas perezosos y algunos animales silvestres, Â¡nunca alimentes a
-                    ninguno! <br>
-                    La casa es ideal para compartir, pasear, hacer ejercicio, leer, pintar, acampar en verano ya que
-                    cuenta con amplio terreno y darte unos di­as de descanso en este espacio rural.
-                    Necesitas 30 minutos para ir a Fortuna.<br></p>
+        <div class="hero-content">
+            <div class="hero-text">
+                <p class="eyebrow">Informacion</p>
+                <h1>Luke's House</h1>
+                <p class="lead">
+                    Lorem ipsum dolor sit amet, consectetur adipisicing 
+                    elit. Corporis similique asperiores placeat veritatis, 
+                    nam modi explicabo blanditiis aperiam ab dignissimos. 
+                    Dolore quod expedita sit vitae. Temporibus expedita eius fuga quod!
+                </p>
+                <div class="hero-actions">
+                </div>
             </div>
+            <div class="hero-visual" role="presentation"></div>
         </div>
-
-        <section>
-            <div class="banner"
-                style="background-image: url(./img/fortuna/aldea-la-fortuna-costa-rica-vista-aerea-de-ciudad-y-iglesia-en-plaza-parque-central-167023541.webp);">
-            </div>
-            <h2>Lugares a Visitar en La Fortuna</h2>
-            <p>Descubre la belleza natural y las actividades emocionantes que La Fortuna tiene para ofrecer.</p>
-        </section>
-        <section class="info-section">
-            <div class="info-card">
-                <div class="info-title">Mistico Park</div>
-                <div class="info-desc">Explora los famosos puentes colgantes y la biodiversidad de Costa Rica en un
-                    entorno natural Ãºnico.</div>
-            </div>
-            <div class="info-card">
-                <div class="info-title">Ri­o Celeste</div>
-                <article class="info-desc">Descubre el ri­o de color turquesa y disfruta de senderismo en el Parque
-                    Nacional VolcÃ¡n Tenorio.</article>
-            </div>
-            <div class="info-card">
-                <div class="info-title">Guanacaste</div>
-                <article class="info-desc">Playas, atardeceres y naturaleza en la provincia mÃ¡s extensa y menos poblada
-                    de Costa Rica.</article>
-            </div>
-            <div class="info-card">
-                <div class="info-title">La Fortuna</div>
-                <article class="info-desc">Pueblo tranquilo, volcÃ¡n Arenal y actividades turi­sticas para todos los
-                    gustos.</article>
-            </div>
-            <div class="info-card">
-                <div class="info-title">Cerro Chato</div>
-                <article class="info-desc">Sumergete en la diversidad de flora y fauna explorando el volcÃ¡n y sus
-                    tesoros ocultos.</article>
-            </div>
-            <div class="info-card">
-                <div class="info-title">Catarata de la Fortuna</div>
-                <article class="info-desc">Admira la impresionante cascada y disfruta de un baÃ±o refrescante en aguas
-                    cristalinas.</article>
-            </div>
-            <div class="info-card">
-                <div class="info-title">Parque Nacional Manuel Antonio</div>
-                <article class="info-desc">Disfruta de playas paradisi­acas y una rica biodiversidad en uno de los
-                    parques mas visitados.</article>
-            </div>
+    </header>
+    <main class="store-main">
+        <section class="category-strip">
+            <article>
+                <h3>Hospedaje</h3>
+                <p>
+                    Lleva lo necesario para tu hospedaje y 
+                    para tu comodidad.
+                </p>
+            </article>
+            <article>
+                <h3>Viaje</h3>
+                <p>
+                    Equipaje ligero y resistente.
+                </p>
+            </article>
+            <article>
+                <h3>Bosque</h3>
+                <p>
+                    Lleva repelente para mosquitos.
+                </p>
+            </article>
+            <article>
+                <h3>Oficina</h3>
+                <p>Herramientas limpias para enfocarte.</p>
+            </article>
         </section>
 
-        <seccion>
+        <section class="featured">
+            <div class="featured-card">
+                <p class="eyebrow">Edicion limitada</p>
+                <h2>Kit de descanso natural</h2>
+                <p>Algodon organico, aromas suaves y acabados mate para crear un rincon tranquilo.</p>
+                <button class="btn-primary" onclick="location.href='seleccion-de-metodo-de-pago.php'">Comprar ahora</button>
             </div>
-        </seccion>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/js/all.min.js"></script>
+            <div class="featured-image"></div>
+        </section>
+
+        <section class="products">
+            <div class="section-head">
+                <h2>Lugares Turisticos</h2>
+                <p>Lugares turisticos de Costa Rica para visitar.</p>
+            </div>
+            <div class="product-grid">
+                <article class="product-card">
+                    <div class="product-image img-01"></div>
+                    <div class="product-body">
+                        <h3>Volcan Poas</h3>
+                        <p>Una de las mejores cosas que hacer en Costa Rica y
+                             una de las mejores excursiones desde San José, 
+                             es acercarte al volcán Poás, rodeado de un bosque nuboso y
+                              una de las maravillas naturales del país de la «Pura Vida».</p>
+                    </div>
+                </article>
+                <article class="product-card">
+                    <div class="product-image img-02"></div>
+                    <div class="product-body">
+                        <h3>Parque Nacional Manuel Antonio</h3>
+                        <p>
+                            Ubicado en la costa del Pacífico, combina playas de arena blanca 
+                            con selva tropical, ideal para avistamiento de monos, perezosos y 
+                            aves exóticas, además de senderismo y snorkel.
+                        </p>
+                    </div>
+                </article>
+                <article class="product-card">
+                    <div class="product-image img-03"></div>
+                    <div class="product-body">
+                        <h3>Parque Nacional Tortuguero</h3>
+                        <p>
+                            Conocido como la "pequeña Amazonia de Costa Rica", 
+                            es un lugar clave para el desove de tortugas verdes y 
+                            la observación de fauna en canales navegables. 
+                        </p>
+                    </div>
+                </article>
+                <article class="product-card">
+                    <div class="product-image img-04"></div>
+                    <div class="product-body">
+                        <h3>parque Nacional Corcobado</h3>
+                        <p>
+                            Considerado uno de los lugares más biodiversos del 
+                            planeta, ideal para caminatas guiadas y avistamiento 
+                            de jaguares, tapires y aves exóticas.
+                        </p>
+                    </div>
+                </article>
+            </div>
         </section>
     </main>
     <?php include './includes/footer.php'; ?>
@@ -100,4 +133,3 @@ include __DIR__ . '/includes/page-start.php';
     <script src="./js/ai-config.js"></script>
     <script src="./js/index.js"></script>
 <?php include __DIR__ . '/includes/page-end.php'; ?>
-

@@ -18,8 +18,7 @@
             <li><a class="navbar-link" href="panel-de-acceso.php" title="Panel de acceso">Panel de acceso</a></li>
         <?php else: ?>
             <li><a class="navbar-link" href="galeria.php" title="Galeria">Galeria</a></li>
-            <li><a class="navbar-link" href="seleccion-de-metodo-de-pago.php" title="Metodo de pago">Metodo de pago</a></li>
-            <li><a class="navbar-link" href="recomendaciones.php" title="Recomendaciones">Recomendaciones</a></li>
+            <li><a class="navbar-link" href="Recomendaciones.php" title="Recomendaciones">Recomendaciones</a></li>
             <?php if ($isOwner): ?>
                 <li><a class="navbar-link" href="Panel-admin.php" title="Panel admin">Panel admin</a></li>
             <?php endif; ?>

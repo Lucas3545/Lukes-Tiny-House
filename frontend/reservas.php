@@ -57,6 +57,33 @@ function is_owner_email(string $email): bool {
     return $normalized !== '' && strcasecmp($normalized, owner_email()) === 0;
 }
 
+function get_user_id_by_email(mysqli $conn, string $email, ?string $usersTable): ?int {
+    if ($usersTable === null || $email === '') {
+        return null;
+    }
+
+    $stmt = $conn->prepare("SELECT id FROM `{$usersTable}` WHERE email = ? LIMIT 1");
+    if (!$stmt) {
+        return null;
+    }
+
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result ? $result->fetch_assoc() : null;
+    $stmt->close();
+
+    return $row ? (int) $row['id'] : null;
+}
+
+function get_current_user_id(mysqli $conn, ?string $usersTable): ?int {
+    $email = current_user_email();
+    if ($email === '') {
+        return null;
+    }
+    return get_user_id_by_email($conn, $email, $usersTable);
+}
+
 function dates_for_nights(string $startDate, int $nights): array {
     $date = DateTime::createFromFormat('Y-m-d', $startDate);
     if (!$date || $date->format('Y-m-d') !== $startDate || $nights < 1) {
@@ -101,7 +128,11 @@ if ($reservationsTable === null) {
     }
 }
 
+$usersTable = table_exists($conn, 'users') ? 'users' : null;
 $hasEstadoColumn = has_column($conn, $reservationsTable, 'estado');
+$hasReservationsEmail = has_column($conn, $reservationsTable, 'email');
+$hasReservationsUserId = has_column($conn, $reservationsTable, 'user_id');
+$hasUsersEmail = $usersTable !== null && has_column($conn, $usersTable, 'email');
 $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'OPTIONS') {
@@ -113,14 +144,26 @@ if ($method === 'OPTIONS') {
 if ($method === 'GET') {
     $mes = isset($_GET['mes']) ? intval($_GET['mes']) : null;
     $anio = isset($_GET['anio']) ? intval($_GET['anio']) : null;
-    $estadoFilter = $hasEstadoColumn ? " AND estado = 'confirmada'" : '';
+    $estadoFilter = $hasEstadoColumn ? " AND r.estado = 'confirmada'" : '';
+
+    $selectEmail = '';
+    $fromClause = "`{$reservationsTable}` AS r";
+
+    if ($hasReservationsEmail) {
+        $selectEmail = 'r.email';
+    } elseif ($hasReservationsUserId && $hasUsersEmail) {
+        $selectEmail = 'u.email AS email';
+        $fromClause = "`{$reservationsTable}` AS r LEFT JOIN `{$usersTable}` AS u ON r.user_id = u.id";
+    } else {
+        $selectEmail = "'' AS email";
+    }
 
     if ($mes !== null && $anio !== null) {
-        $stmt = $conn->prepare("SELECT fecha, nombre, email FROM {$reservationsTable} WHERE MONTH(fecha) = ? AND YEAR(fecha) = ?{$estadoFilter}");
+        $stmt = $conn->prepare("SELECT r.fecha, r.nombre, {$selectEmail} FROM {$fromClause} WHERE MONTH(r.fecha) = ? AND YEAR(r.fecha) = ?{$estadoFilter}");
         $stmt->bind_param('ii', $mes, $anio);
     } else {
-        $baseWhere = $hasEstadoColumn ? " WHERE estado = 'confirmada'" : '';
-        $stmt = $conn->prepare("SELECT fecha, nombre, email FROM {$reservationsTable}{$baseWhere}");
+        $baseWhere = $hasEstadoColumn ? " WHERE r.estado = 'confirmada'" : '';
+        $stmt = $conn->prepare("SELECT r.fecha, r.nombre, {$selectEmail} FROM {$fromClause}{$baseWhere}");
     }
 
     if (!$stmt) {
@@ -168,43 +211,100 @@ if ($method === 'POST') {
         }
 
         $owner = is_owner_email($userEmail);
-        $selectWhere = $hasEstadoColumn ? " WHERE fecha = ? AND estado = 'confirmada'" : " WHERE fecha = ?";
-        $findStmt = $conn->prepare("SELECT email FROM {$reservationsTable}{$selectWhere} LIMIT 1");
-        if (!$findStmt) {
-            echo json_encode(['success' => false, 'message' => 'Error al validar reserva: ' . $conn->error]);
-            $conn->close();
-            exit;
-        }
 
-        $findStmt->bind_param('s', $fecha);
-        $findStmt->execute();
-        $reservation = $findStmt->get_result()->fetch_assoc();
-        $findStmt->close();
+        if ($hasReservationsEmail) {
+            $selectWhere = $hasEstadoColumn ? " WHERE fecha = ? AND estado = 'confirmada'" : " WHERE fecha = ?";
+            $findStmt = $conn->prepare("SELECT email FROM {$reservationsTable}{$selectWhere} LIMIT 1");
+            if (!$findStmt) {
+                echo json_encode(['success' => false, 'message' => 'Error al validar reserva: ' . $conn->error]);
+                $conn->close();
+                exit;
+            }
 
-        if (!$reservation) {
-            echo json_encode(['success' => false, 'message' => 'No se encontro una reserva activa en esa fecha']);
-            $conn->close();
-            exit;
-        }
+            $findStmt->bind_param('s', $fecha);
+            $findStmt->execute();
+            $reservation = $findStmt->get_result()->fetch_assoc();
+            $findStmt->close();
 
-        $reservationEmail = strtolower(trim((string) ($reservation['email'] ?? '')));
-        if (!$owner && strcasecmp($reservationEmail, $userEmail) !== 0) {
-            echo json_encode([
-                'success' => false,
-                'message' => 'Solo el usuario que hizo la reserva o el admin puede cancelarla'
-            ]);
-            $conn->close();
-            exit;
-        }
+            if (!$reservation) {
+                echo json_encode(['success' => false, 'message' => 'No se encontro una reserva activa en esa fecha']);
+                $conn->close();
+                exit;
+            }
 
-        if ($hasEstadoColumn) {
-            $stmt = $owner
-                ? $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada'")
-                : $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada' AND email = ?");
+            $reservationEmail = strtolower(trim((string) ($reservation['email'] ?? '')));
+            if (!$owner && strcasecmp($reservationEmail, $userEmail) !== 0) {
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Solo el usuario que hizo la reserva o el admin puede cancelarla'
+                ]);
+                $conn->close();
+                exit;
+            }
+
+            if ($hasEstadoColumn) {
+                $stmt = $owner
+                    ? $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada'")
+                    : $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada' AND email = ?");
+            } else {
+                $stmt = $owner
+                    ? $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ?")
+                    : $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ? AND email = ?");
+            }
+        } elseif ($hasReservationsUserId && $hasUsersEmail) {
+            $currentUserId = get_current_user_id($conn, $usersTable);
+            $selectWhere = $hasEstadoColumn ? " WHERE fecha = ? AND estado = 'confirmada'" : " WHERE fecha = ?";
+            $findStmt = $conn->prepare("SELECT user_id FROM {$reservationsTable}{$selectWhere} LIMIT 1");
+            if (!$findStmt) {
+                echo json_encode(['success' => false, 'message' => 'Error al validar reserva: ' . $conn->error]);
+                $conn->close();
+                exit;
+            }
+
+            $findStmt->bind_param('s', $fecha);
+            $findStmt->execute();
+            $reservation = $findStmt->get_result()->fetch_assoc();
+            $findStmt->close();
+
+            if (!$reservation) {
+                echo json_encode(['success' => false, 'message' => 'No se encontro una reserva activa en esa fecha']);
+                $conn->close();
+                exit;
+            }
+
+            $reservationUserId = isset($reservation['user_id']) ? (int) $reservation['user_id'] : 0;
+            if (!$owner) {
+                if ($currentUserId === null || $reservationUserId !== $currentUserId) {
+                    echo json_encode([
+                        'success' => false,
+                        'message' => 'Solo el usuario que hizo la reserva o el admin puede cancelarla'
+                    ]);
+                    $conn->close();
+                    exit;
+                }
+            }
+
+            if ($hasEstadoColumn) {
+                $stmt = $owner
+                    ? $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada'")
+                    : $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada' AND user_id = ?");
+            } else {
+                $stmt = $owner
+                    ? $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ?")
+                    : $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ? AND user_id = ?");
+            }
         } else {
-            $stmt = $owner
-                ? $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ?")
-                : $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ? AND email = ?");
+            if (!$owner) {
+                echo json_encode(['success' => false, 'message' => 'No se puede validar la reserva para cancelarla. Inicia sesion o contacta al administrador.']);
+                $conn->close();
+                exit;
+            }
+
+            if ($hasEstadoColumn) {
+                $stmt = $conn->prepare("UPDATE {$reservationsTable} SET estado = 'cancelada' WHERE fecha = ? AND estado = 'confirmada'");
+            } else {
+                $stmt = $conn->prepare("DELETE FROM {$reservationsTable} WHERE fecha = ?");
+            }
         }
 
         if (!$stmt) {
@@ -213,11 +313,22 @@ if ($method === 'POST') {
             exit;
         }
 
-        if ($owner) {
-            $stmt->bind_param('s', $fecha);
+        if ($hasReservationsEmail) {
+            if ($owner) {
+                $stmt->bind_param('s', $fecha);
+            } else {
+                $stmt->bind_param('ss', $fecha, $userEmail);
+            }
+        } elseif ($hasReservationsUserId && $hasUsersEmail) {
+            if ($owner) {
+                $stmt->bind_param('s', $fecha);
+            } else {
+                $stmt->bind_param('si', $fecha, $currentUserId);
+            }
         } else {
-            $stmt->bind_param('ss', $fecha, $userEmail);
+            $stmt->bind_param('s', $fecha);
         }
+
         $stmt->execute();
 
         if ($stmt->affected_rows > 0) {
@@ -295,52 +406,109 @@ if ($method === 'POST') {
     try {
         $conn->begin_transaction();
 
-        if ($hasEstadoColumn) {
-            $reactivateStmt = $conn->prepare(
-                "UPDATE {$reservationsTable} SET nombre = ?, email = ?, estado = 'confirmada' WHERE fecha = ? AND estado <> 'confirmada'"
-            );
-            if (!$reactivateStmt) {
-                throw new RuntimeException('Error al preparar reactivacion: ' . $conn->error);
-            }
-
-            $insertStmt = $conn->prepare(
-                "INSERT INTO {$reservationsTable} (fecha, nombre, email, estado) VALUES (?, ?, ?, 'confirmada')"
-            );
-            if (!$insertStmt) {
-                $reactivateStmt->close();
-                throw new RuntimeException('Error al preparar insercion: ' . $conn->error);
-            }
-
-            foreach ($fechasReserva as $fechaReserva) {
-                $reactivateStmt->bind_param('sss', $nombre, $email, $fechaReserva);
-                if (!$reactivateStmt->execute()) {
-                    throw new RuntimeException($reactivateStmt->error);
+        if ($hasReservationsEmail) {
+            if ($hasEstadoColumn) {
+                $reactivateStmt = $conn->prepare(
+                    "UPDATE {$reservationsTable} SET nombre = ?, email = ?, estado = 'confirmada' WHERE fecha = ? AND estado <> 'confirmada'"
+                );
+                if (!$reactivateStmt) {
+                    throw new RuntimeException('Error al preparar reactivacion: ' . $conn->error);
                 }
 
-                if ($reactivateStmt->affected_rows === 0) {
+                $insertStmt = $conn->prepare(
+                    "INSERT INTO {$reservationsTable} (fecha, nombre, email, estado) VALUES (?, ?, ?, 'confirmada')"
+                );
+                if (!$insertStmt) {
+                    $reactivateStmt->close();
+                    throw new RuntimeException('Error al preparar insercion: ' . $conn->error);
+                }
+
+                foreach ($fechasReserva as $fechaReserva) {
+                    $reactivateStmt->bind_param('sss', $nombre, $email, $fechaReserva);
+                    if (!$reactivateStmt->execute()) {
+                        throw new RuntimeException($reactivateStmt->error);
+                    }
+
+                    if ($reactivateStmt->affected_rows === 0) {
+                        $insertStmt->bind_param('sss', $fechaReserva, $nombre, $email);
+                        if (!$insertStmt->execute()) {
+                            throw new RuntimeException($insertStmt->error);
+                        }
+                    }
+                }
+
+                $reactivateStmt->close();
+                $insertStmt->close();
+            } else {
+                $insertStmt = $conn->prepare("INSERT INTO {$reservationsTable} (fecha, nombre, email) VALUES (?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new RuntimeException('Error al preparar insercion: ' . $conn->error);
+                }
+
+                foreach ($fechasReserva as $fechaReserva) {
                     $insertStmt->bind_param('sss', $fechaReserva, $nombre, $email);
                     if (!$insertStmt->execute()) {
                         throw new RuntimeException($insertStmt->error);
                     }
                 }
+
+                $insertStmt->close();
+            }
+        } elseif ($hasReservationsUserId && $usersTable !== null) {
+            $userId = get_user_id_by_email($conn, $email, $usersTable);
+            if ($userId === null) {
+                throw new RuntimeException('No existe un usuario registrado con ese correo. Inicia sesion o usa un correo registrado.');
             }
 
-            $reactivateStmt->close();
-            $insertStmt->close();
-        } else {
-            $insertStmt = $conn->prepare("INSERT INTO {$reservationsTable} (fecha, nombre, email) VALUES (?, ?, ?)");
-            if (!$insertStmt) {
-                throw new RuntimeException('Error al preparar insercion: ' . $conn->error);
-            }
-
-            foreach ($fechasReserva as $fechaReserva) {
-                $insertStmt->bind_param('sss', $fechaReserva, $nombre, $email);
-                if (!$insertStmt->execute()) {
-                    throw new RuntimeException($insertStmt->error);
+            if ($hasEstadoColumn) {
+                $reactivateStmt = $conn->prepare(
+                    "UPDATE {$reservationsTable} SET nombre = ?, user_id = ?, estado = 'confirmada' WHERE fecha = ? AND estado <> 'confirmada'"
+                );
+                if (!$reactivateStmt) {
+                    throw new RuntimeException('Error al preparar reactivacion: ' . $conn->error);
                 }
-            }
 
-            $insertStmt->close();
+                $insertStmt = $conn->prepare(
+                    "INSERT INTO {$reservationsTable} (fecha, nombre, user_id, estado) VALUES (?, ?, ?, 'confirmada')"
+                );
+                if (!$insertStmt) {
+                    $reactivateStmt->close();
+                    throw new RuntimeException('Error al preparar insercion: ' . $conn->error);
+                }
+
+                foreach ($fechasReserva as $fechaReserva) {
+                    $reactivateStmt->bind_param('sis', $nombre, $userId, $fechaReserva);
+                    if (!$reactivateStmt->execute()) {
+                        throw new RuntimeException($reactivateStmt->error);
+                    }
+
+                    if ($reactivateStmt->affected_rows === 0) {
+                        $insertStmt->bind_param('sis', $fechaReserva, $nombre, $userId);
+                        if (!$insertStmt->execute()) {
+                            throw new RuntimeException($insertStmt->error);
+                        }
+                    }
+                }
+
+                $reactivateStmt->close();
+                $insertStmt->close();
+            } else {
+                $insertStmt = $conn->prepare("INSERT INTO {$reservationsTable} (fecha, nombre, user_id) VALUES (?, ?, ?)");
+                if (!$insertStmt) {
+                    throw new RuntimeException('Error al preparar insercion: ' . $conn->error);
+                }
+
+                foreach ($fechasReserva as $fechaReserva) {
+                    $insertStmt->bind_param('sis', $fechaReserva, $nombre, $userId);
+                    if (!$insertStmt->execute()) {
+                        throw new RuntimeException($insertStmt->error);
+                    }
+                }
+
+                $insertStmt->close();
+            }
+        } else {
+            throw new RuntimeException('El esquema de reservas no es compatible.');
         }
 
         $conn->commit();

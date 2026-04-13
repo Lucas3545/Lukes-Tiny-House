@@ -35,6 +35,7 @@ include __DIR__ . '/includes/page-start.php';
                 <button id="confirmReservation">Confirmar Reserva</button>
                 <button id="cancelReservation" type="button" style="display:none;">Cancelar Reserva</button>
                 <div class="success-message" id="successMsg" style="display:none;">Reserva realizada con exito</div>
+                <p class="reservation-hint" id="reservationHint">Usa el correo con el que te registraste en el sitio. Si ya iniciaste sesión, este campo se completará automáticamente.</p>
             </div>
         </div>
         <div>
@@ -176,6 +177,23 @@ include __DIR__ . '/includes/page-start.php';
             document.getElementById('reservationForm').style.display = 'none';
         };
 
+        function getCookieValue(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+
+        function tryAutoFillEmail() {
+            const savedEmail = getCookieValue('lh_email');
+            if (savedEmail) {
+                const emailInput = document.getElementById('email');
+                if (emailInput && !emailInput.value.trim()) {
+                    emailInput.value = savedEmail;
+                }
+            }
+        }
+
         document.getElementById('confirmReservation').onclick = async function () {
             const nombre = document.getElementById('nombre').value.trim();
             const email = document.getElementById('email').value.trim();
@@ -256,6 +274,7 @@ include __DIR__ . '/includes/page-start.php';
             }
         };
 
+        tryAutoFillEmail();
         renderCalendar(currentMonth, currentYear);
     </script>
 <?php include __DIR__ . '/includes/page-end.php'; ?>

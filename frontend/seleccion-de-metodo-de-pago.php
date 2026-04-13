@@ -63,7 +63,7 @@ include __DIR__ . '/includes/page-start.php';
         <button onclick="window.location.href='https://www.paypal.com/us/home';">
             Ir a PayPal
         </button>
-
+        
     </div>
     <script src="./js/seleccion-de-metodo-de-pago.js"></script>
 

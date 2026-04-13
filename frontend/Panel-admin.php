@@ -58,9 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 throw new RuntimeException('No existe la tabla de reservas.');
             }
 
+            $usersTable = admin_first_table($conn, ['users']);
             $hasId = admin_has_column($conn, $reservationsTable, 'id');
             $hasFecha = admin_has_column($conn, $reservationsTable, 'fecha');
             $hasEmail = admin_has_column($conn, $reservationsTable, 'email');
+            $hasUserId = admin_has_column($conn, $reservationsTable, 'user_id');
+            $hasUsersEmail = $usersTable !== null && admin_has_column($conn, $usersTable, 'email');
             $reservationId = isset($_POST['reservation_id']) ? (int) $_POST['reservation_id'] : 0;
             $fecha = trim((string) ($_POST['fecha'] ?? ''));
             $email = trim((string) ($_POST['email'] ?? ''));
@@ -74,6 +77,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } elseif ($hasFecha && $fecha !== '') {
                 if ($hasEmail && $email !== '') {
                     $stmt = $conn->prepare("DELETE FROM `{$reservationsTable}` WHERE fecha = ? AND email = ? LIMIT 1");
+                    if (!$stmt) {
+                        throw new RuntimeException('Error al preparar eliminacion de reserva: ' . $conn->error);
+                    }
+                    $stmt->bind_param('ss', $fecha, $email);
+                } elseif ($hasUserId && $hasUsersEmail && $email !== '') {
+                    $stmt = $conn->prepare(
+                        "DELETE r FROM `{$reservationsTable}` AS r JOIN `{$usersTable}` AS u ON r.user_id = u.id WHERE r.fecha = ? AND u.email = ? LIMIT 1"
+                    );
                     if (!$stmt) {
                         throw new RuntimeException('Error al preparar eliminacion de reserva: ' . $conn->error);
                     }
@@ -263,6 +274,7 @@ function panel_admin_get_stats() {
     if ($reservationsTable !== null) {
         $meta['can_delete_reservations'] = true;
         $meta['reservations_has_id'] = admin_has_column($conn, $reservationsTable, 'id');
+        $meta['reservations_has_user_id'] = admin_has_column($conn, $reservationsTable, 'user_id');
         $meta['reservations_has_email'] = admin_has_column($conn, $reservationsTable, 'email');
         $meta['reservations_has_fecha'] = admin_has_column($conn, $reservationsTable, 'fecha');
 
@@ -292,23 +304,41 @@ function panel_admin_get_stats() {
         }
 
         $reservationSelect = [];
+        $reservationFrom = "`{$reservationsTable}`";
+        $joinUsersForReservations = false;
+
         if ($meta['reservations_has_id']) {
-            $reservationSelect[] = 'id';
+            $reservationSelect[] = 'r.id';
         }
-        $reservationSelect[] = 'nombre';
-        $reservationSelect[] = 'email';
-        $reservationSelect[] = 'fecha';
+        $reservationSelect[] = 'r.nombre';
+
+        if ($meta['reservations_has_email']) {
+            $reservationSelect[] = 'r.email';
+        } elseif ($meta['reservations_has_user_id'] && $usersTable !== null && admin_has_column($conn, $usersTable, 'email')) {
+            $reservationSelect[] = 'u.email AS email';
+            $joinUsersForReservations = true;
+        } else {
+            $reservationSelect[] = "'' AS email";
+        }
+
+        $reservationSelect[] = 'r.fecha';
         if (admin_has_column($conn, $reservationsTable, 'estado')) {
-            $reservationSelect[] = 'estado';
+            $reservationSelect[] = 'r.estado';
         } else {
             $reservationSelect[] = "'' AS estado";
         }
-        $reservationSelect[] = 'fecha_registro';
+        $reservationSelect[] = 'r.fecha_registro';
+
+        if ($joinUsersForReservations) {
+            $reservationFrom = "`{$reservationsTable}` AS r LEFT JOIN `{$usersTable}` AS u ON r.user_id = u.id";
+        } else {
+            $reservationFrom = "`{$reservationsTable}` AS r";
+        }
 
         $latestReservationsResult = $conn->query("
             SELECT " . implode(', ', $reservationSelect) . "
-            FROM `{$reservationsTable}`
-            ORDER BY fecha_registro DESC
+            FROM " . $reservationFrom . "
+            ORDER BY r.fecha_registro DESC
             LIMIT 5
         ");
         if ($latestReservationsResult) {
@@ -320,18 +350,31 @@ function panel_admin_get_stats() {
         if (admin_has_column($conn, $reservationsTable, 'estado')) {
             $cancellationsSelect = [];
             if ($meta['reservations_has_id']) {
-                $cancellationsSelect[] = 'id';
+                $cancellationsSelect[] = 'r.id';
             }
-            $cancellationsSelect[] = 'nombre';
-            $cancellationsSelect[] = 'email';
-            $cancellationsSelect[] = 'fecha';
-            $cancellationsSelect[] = 'fecha_registro';
+            $cancellationsSelect[] = 'r.nombre';
+
+            if ($meta['reservations_has_email']) {
+                $cancellationsSelect[] = 'r.email';
+            } elseif ($meta['reservations_has_user_id'] && $usersTable !== null && admin_has_column($conn, $usersTable, 'email')) {
+                $cancellationsSelect[] = 'u.email AS email';
+                $joinUsersForReservations = true;
+            } else {
+                $cancellationsSelect[] = "'' AS email";
+            }
+
+            $cancellationsSelect[] = 'r.fecha';
+            $cancellationsSelect[] = 'r.fecha_registro';
+
+            $cancellationsFrom = $joinUsersForReservations
+                ? "`{$reservationsTable}` AS r LEFT JOIN `{$usersTable}` AS u ON r.user_id = u.id"
+                : "`{$reservationsTable}` AS r";
 
             $latestCancellationsResult = $conn->query("
                 SELECT " . implode(', ', $cancellationsSelect) . "
-                FROM `{$reservationsTable}`
-                WHERE estado='cancelada'
-                ORDER BY fecha_registro DESC
+                FROM " . $cancellationsFrom . "
+                WHERE r.estado='cancelada'
+                ORDER BY r.fecha_registro DESC
                 LIMIT 5
             ");
             if ($latestCancellationsResult) {
