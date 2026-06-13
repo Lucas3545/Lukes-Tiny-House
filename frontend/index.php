@@ -19,15 +19,20 @@ include __DIR__ . '/includes/page-start.php';
                 <p class="eyebrow">Informacion</p>
                 <h1>Luke's House</h1>
                 <p class="lead">
-                    Lorem ipsum dolor sit amet, consectetur adipisicing 
-                    elit. Corporis similique asperiores placeat veritatis, 
-                    nam modi explicabo blanditiis aperiam ab dignissimos. 
-                    Dolore quod expedita sit vitae. Temporibus expedita eius fuga quod!
+                    Luke’s House es un alojamiento minimalista y acogedor,
+                     diseñado con materiales naturales y detalles sencillos que transmiten calma y comodidad.
+                      El espacio combina funcionalidad con estética limpia, ideal para quienes buscan descansar
+                       rodeados de un ambiente sereno. Además, se inspira en la filosofía de la “Pura Vida”,
+                        ofreciendo recomendaciones prácticas para el viaje y destacando atractivos
+                         turísticos cercanos como volcanes, playas y parques nacionales de Costa Rica.
                 </p>
                 <div class="hero-actions">
+                    <img src="../frontend/img/qrcode.jpg" alt="QR Code" class="qr-code">
                 </div>
             </div>
-            <div class="hero-visual" role="presentation"></div>
+            <div class="hero-visual" role="presentation">
+                <img src="../frontend/img/cabanita/cabana.webp" alt="Luke's House">
+            </div>
         </div>
     </header>
     <main class="store-main">
@@ -57,16 +62,6 @@ include __DIR__ . '/includes/page-start.php';
             </article>
         </section>
 
-        <section class="featured">
-            <div class="featured-card">
-                <p class="eyebrow">Edicion limitada</p>
-                <h2>Kit de descanso natural</h2>
-                <p>Algodon organico, aromas suaves y acabados mate para crear un rincon tranquilo.</p>
-                <button class="btn-primary" onclick="location.href='seleccion-de-metodo-de-pago.php'">Comprar ahora</button>
-            </div>
-            <div class="featured-image"></div>
-        </section>
-
         <section class="products">
             <div class="section-head">
                 <h2>Lugares Turisticos</h2>
@@ -74,7 +69,9 @@ include __DIR__ . '/includes/page-start.php';
             </div>
             <div class="product-grid">
                 <article class="product-card">
-                    <div class="product-image img-01"></div>
+                    <div class="product-image img-01">
+                        <img class="product-image" src="../frontend/img/volcan_poas.webp" alt="Volcan Poas">
+                    </div>
                     <div class="product-body">
                         <h3>Volcan Poas</h3>
                         <p>Una de las mejores cosas que hacer en Costa Rica y
@@ -84,7 +81,9 @@ include __DIR__ . '/includes/page-start.php';
                     </div>
                 </article>
                 <article class="product-card">
-                    <div class="product-image img-02"></div>
+                    <div class="product-image img-02">
+                        <img class="product-image" src="../frontend/img/Manuel_antonio.webp" alt="Parque Nacional Manuel Antonio">
+                    </div>
                     <div class="product-body">
                         <h3>Parque Nacional Manuel Antonio</h3>
                         <p>
@@ -95,7 +94,9 @@ include __DIR__ . '/includes/page-start.php';
                     </div>
                 </article>
                 <article class="product-card">
-                    <div class="product-image img-03"></div>
+                    <div class="product-image img-03">
+                        <img class="product-image" src="../frontend/img/tortuguero.webp" alt="Parque Nacional Tortuguero">
+                    </div>
                     <div class="product-body">
                         <h3>Parque Nacional Tortuguero</h3>
                         <p>
@@ -106,7 +107,9 @@ include __DIR__ . '/includes/page-start.php';
                     </div>
                 </article>
                 <article class="product-card">
-                    <div class="product-image img-04"></div>
+                    <div class="product-image img-04">
+                        <img class="product-image" src="../frontend/img/corcovado.jpg" alt="Parque Nacional Corcobado  ">
+                    </div>
                     <div class="product-body">
                         <h3>parque Nacional Corcobado</h3>
                         <p>
@@ -117,6 +120,16 @@ include __DIR__ . '/includes/page-start.php';
                     </div>
                 </article>
             </div>
+            <div class="view-more">
+                <button class="btn-secondary" onclick="location.href='lugares-turisticos.php'">Ver mas</button>
+            </div>
+        </section>
+        <section class="ai-recommendations">
+            <div class="section-head">
+                <h2>Recomendaciones Personalizadas</h2>
+                <p>Recibe recomendaciones personalizadas para tu viaje a Costa Rica.</p>
+            </div>
+           <a><button class="btn-primary" id="get-recommendations-btn" onclick="location.href='recomendaciones.php'">Obtener Recomendaciones</button></a>
         </section>
     </main>
     <?php include './includes/footer.php'; ?>

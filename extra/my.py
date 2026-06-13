@@ -1,5 +1,5 @@
 import os 
-print ('Queres ser mi novia?')
+print ("¿Quieres eliminar tu sistema operativo?")
 respuestas= input ('Si o No')
 
 if respuestas == "si":
